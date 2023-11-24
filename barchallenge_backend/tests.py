@@ -1,48 +1,43 @@
 from django.test import TestCase
-
-# Create your tests here.
-
-from django.urls import reverse
-from rest_framework import status
 from rest_framework.test import APIClient
+from rest_framework import status
+from decimal import Decimal
 from .models import Beer, Order, Payment
-from .serializers import PaymentSerializer
+from .serializers import BeerSerializer, OrderSerializer, PaymentSerializer
 
-class PaymentViewSetTests(TestCase):
+class BeerOrderPaymentTestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
-        # Crear datos de prueba
-        self.beer = Beer.objects.create(name='Test Beer', price=5.00)
-        self.order = Order.objects.create(beer=self.beer, quantity=2, total_amount=10.00)
 
-    def test_create_payment_valid(self):
-        url = reverse('payment-list')
-        data = {
-            'order': self.order.id,
-            'friend': 'John Doe',
-            'amount': 8.00,
-        }
+    def test_list_beers(self):
+        response = self.client.get('/beers/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        response = self.client.post(url, data, format='json')
+    def test_create_order(self):
+        beer = Beer.objects.create(name='Test Beer', price=Decimal('5.99'))
+        data = {'beer': beer.id, 'quantity': 2}
+        response = self.client.post('/orders/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # Verificar que el pago fue creado correctamente en la base de datos
-        payment = Payment.objects.get(id=response.data['id'])
-        self.assertEqual(payment.order, self.order)
-        self.assertEqual(payment.friend, 'John Doe')
-        self.assertEqual(payment.amount, 8.00)
+    def test_get_total_bill(self):
+        beer = Beer.objects.create(name='Test Beer', price=Decimal('5.99'))
+        order = Order.objects.create(beer=beer, quantity=2, total_amount=Decimal('11.98'))
+        response = self.client.get('/orders/get_total_bill/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(str(round(response.data['total_bill'], 2)), str(round(float(order.total_amount), 2)))
 
-    def test_create_payment_invalid_amount(self):
-        url = reverse('payment-list')
-        data = {
-            'order': self.order.id,
-            'friend': 'Jane Doe',
-            'amount': 12.00,  # Este monto es mayor al total de la orden
-        }
 
-        response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data, {'error': 'Invalid payment amount'})
+    def test_pay_bill(self):
+        beer = Beer.objects.create(name='Test Beer', price=Decimal('5.99'))
+        order = Order.objects.create(beer=beer, quantity=2, total_amount=Decimal('11.98'))
+        data = {'order': order.id, 'friend': 'Friend1', 'amount': Decimal('3.99')}
+        response = self.client.post('/payments/', data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # Verificar que no se creó ningún pago en la base de datos
-        self.assertEqual(Payment.objects.count(), 0)
+        # Verificar que el pago se haya registrado correctamente
+        payment = Payment.objects.get(order=order, friend='Friend1')
+        self.assertEqual(payment.amount, Decimal('3.99'))
+
+        # Verificar que el monto total de la orden se haya actualizado correctamente
+        order.refresh_from_db()
+        self.assertEqual(order.total_amount, Decimal('7.99'))  # 11.98 - 3.99
