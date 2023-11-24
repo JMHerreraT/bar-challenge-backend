@@ -8,9 +8,10 @@ class BeerSerializer(serializers.ModelSerializer):
         read_only_fields = ('created_at',)
 
 class OrderSerializer(serializers.ModelSerializer):
+    beer = BeerSerializer()  # Incluir la serialización de la cerveza
     class Meta:
         model = Order
-        fields = '__all__'
+        fields = ['id', 'beer', 'quantity', 'total_amount', 'created_at']
         read_only_fields = ('created_at',)
 
 class PaymentSerializer(serializers.ModelSerializer):
