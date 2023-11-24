@@ -3,7 +3,15 @@
 You can try the deployed version:
 `https://bar-challenge-python.onrender.com/`
 
-To start this project, first run these commands:
+To start this project, ensure that you have a folder that would contain all projects.
+
+first run these commands:
+
+(In case you dont have a virtual environment) Install a new virtual environment:
+
+```bash
+python -m virtualenv venv
+```
 
 Start your virtual environment:
 
