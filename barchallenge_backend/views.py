@@ -23,6 +23,16 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     serializer_class = OrderSerializer
 
+    def create(self, request, *args, **kwargs):
+        quantity = request.data.get('quantity')
+        beer_id = Decimal(request.data.get('beer'))
+
+        beer = Beer.objects.get(pk=beer_id)
+
+        order = Order.objects.create(beer=beer, quantity=quantity, total_amount=Decimal(beer.price)*Decimal(quantity))
+        serializer = OrderSerializer(order)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @action(detail=False, methods=['get'])
     def get_total_bill(self, request):
         total_bill = Order.objects.aggregate(Sum('total_amount'))['total_amount__sum']
