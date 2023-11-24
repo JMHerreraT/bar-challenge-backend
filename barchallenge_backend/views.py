@@ -24,14 +24,23 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
 
     def create(self, request, *args, **kwargs):
-        quantity = request.data.get('quantity')
-        beer_id = Decimal(request.data.get('beer'))
+        orders_data = request.data
 
-        beer = Beer.objects.get(pk=beer_id)
+        # Lista para almacenar los objetos de pedido creados
+        created_orders = []
 
-        order = Order.objects.create(beer=beer, quantity=quantity, total_amount=Decimal(beer.price)*Decimal(quantity))
-        serializer = OrderSerializer(order)
+        for order_data in orders_data:
+            quantity = order_data.get('quantity')
+            beer_id = Decimal(order_data.get('beer'))
+
+            beer = Beer.objects.get(pk=beer_id)
+
+            order = Order.objects.create(beer=beer, quantity=quantity, total_amount=Decimal(beer.price) * Decimal(quantity))
+            created_orders.append(order)
+
+        serializer = OrderSerializer(created_orders, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
     @action(detail=False, methods=['get'])
     def get_total_bill(self, request):
